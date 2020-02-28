@@ -23,7 +23,7 @@ public class LaunchActivity extends Activity {
             // permission
             if (!hasPermissions(PERMISSIONS)) {
                 //
-                requestPermissions(PERMISSIONS, PERMISSION_REQUEST_CODE);
+                requestPermissions(PERMISSIONS, PERMISSIONS_REQUEST_CODE);
             } else {
                 Intent mainIntent = new Intent(LaunchActivity.this, MainActivity.class);
                 startActivity(mainIntent);
@@ -33,7 +33,7 @@ public class LaunchActivity extends Activity {
     }
 
     //
-    static final int PERMISSION_REQUEST_CODE = 1000;
+    static final int PERMISSIONS_REQUEST_CODE = 1000;
     private static final String[] PERMISSIONS = {Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE};
 
     private boolean hasPermissions(String[] permissions) {
@@ -57,8 +57,8 @@ public class LaunchActivity extends Activity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode,permissions,grantResults);
         switch(requestCode){
-            case PERMISSION_REQUEST_CODE:
-                if(grantResults.length>0) {
+            case PERMISSIONS_REQUEST_CODE:
+                if(grantResults.length > 0) {
                     boolean cameraPermissionAccepted = grantResults[0]
                             == PackageManager.PERMISSION_GRANTED;
                     boolean diskPermissionAccepted = grantResults[1]

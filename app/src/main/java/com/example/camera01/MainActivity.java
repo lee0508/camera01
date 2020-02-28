@@ -34,6 +34,7 @@ import android.media.ExifInterface;
 import android.media.Image;
 import android.media.ImageReader;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -57,6 +58,7 @@ import java.util.Arrays;
 
 @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
 public class MainActivity extends AppCompatActivity {
+
     private SurfaceView mSurfaceView;
     private SurfaceHolder mSurfaceViewHolder;
     private Handler mHandler;
@@ -71,12 +73,15 @@ public class MainActivity extends AppCompatActivity {
     private SensorManager mSensorManager;
     private DeviceOrientation deviceOrientation;
     int mDSI_height, mDSI_width;
-    boolean previewing = false;
+    private int mCameraFacing; // 전면 or 후면 카메라 상태 저장
 
-    final int RESULT_SAVEIMAGE = 0;
+
+    //boolean previewing = false;
+
+    //final int RESULT_SAVEIMAGE = 0;
     //public static final String[]
 
-    private static final SparseIntArray ORIENTATIONS = new SpareIntArray();
+    private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
     static {
         ORIENTATIONS.append(ExifInterface.ORIENTATION_NORMAL,0);
         ORIENTATIONS.append(ExifInterface.ORIENTATION_ROTATE_90, 90);
@@ -84,11 +89,11 @@ public class MainActivity extends AppCompatActivity {
         ORIENTATIONS.append(ExifInterface.ORIENTATION_ROTATE_270, 270);
     }
 
-    private int resolutionWidth;
+    /*private int resolutionWidth;
     private int resolutionHeight;
     private int mCameraFacing;
 
-    private static final String TAG = "MyTag";
+    private static final String TAG = "MyTag";*/
 
     //private CameraCaptureSession.CaptureCallback mSessionCaptureCallback;
 
@@ -117,32 +122,17 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
               takePicture();
             }
-
-            private void takePicture() {
-                Toast.makeText(MainActivity.this,"takePicture",Toast.LENGTH_SHORT).show();
-                try {
-                    CaptureRequest.Builder captureRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);//用来设置拍照请求的request
-                    captureRequestBuilder.addTarget(mImageReader.getSurface());
-                    captureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-                    captureRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
-
-
-                    // 화면 회전 안되게 고정시켜 놓은 상태에서는 아래 로직으로 방향을 얻을 수 없어서
-                    // 센서를 사용하는 것으로 변경
-                    //deviceRotation = getResources().getConfiguration().orientation;
-                    mDeviceRotation = ORIENTATIONS.get(deviceOrientation.getOrientation());
-                    Log.d("@@@", mDeviceRotation + "");
-
-                    captureRequestBuilder.set(CaptureRequest.JPEG_ORIENTATION, mDeviceRotation);
-                    CaptureRequest mCaptureRequest = captureRequestBuilder.build();
-                    mSession.capture(mCaptureRequest, mSessionCaptureCallback, mHandler);
-                } catch (CameraAccessException e) {
-                    e.printStackTrace();
-                }
-            }
-
         });
+
         button1.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                takeCancel();
+            }
+        });
+
+
+        /*button1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Context context;
@@ -172,7 +162,7 @@ public class MainActivity extends AppCompatActivity {
 
 
             }
-        });
+        });*/
         mSurfaceView = findViewById(R.id.surfaceView);
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -180,8 +170,6 @@ public class MainActivity extends AppCompatActivity {
         deviceOrientation = new DeviceOrientation();
 
         initSurfaceView();
-
-
     }
 
 
@@ -230,6 +218,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
    // @androidx.annotation.RequiresApi(api = android.os.Build.VERSION_CODES.LOLLIPOP)
+    @SuppressWarnings("deprecation")
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     public void initCameraAndPreview() {
         HandlerThread handlerThread = new HandlerThread("CAMERA2");
@@ -237,6 +226,7 @@ public class MainActivity extends AppCompatActivity {
 
         mHandler = new Handler(handlerThread.getLooper());
         Handler mainHandler = new Handler(getMainLooper());
+
         try{
             String mCameraId = "" + CameraCharacteristics.LENS_FACING_FRONT;
             CameraManager mCameraManager = null;
@@ -264,25 +254,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void setAspectRatioTextureView(int height, int width) {
-        int ResolutionWidth = width  ;
-        int ResolutionHeight = height;
-        resolutionWidth = ResolutionWidth;
-        resolutionHeight = ResolutionHeight;
-        if(ResolutionWidth > ResolutionHeight){
-            int newWidth = mDSI_width;
-            int newHeight = ((mDSI_width * ResolutionWidth)/ResolutionHeight);
-            updateTextureViewSize(newWidth,newHeight);
-
-        }else {
-            int newWidth = mDSI_width;
-            int newHeight = ((mDSI_width * ResolutionHeight)/ResolutionWidth);
-            updateTextureViewSize(newWidth,newHeight);
-        }
-    }
-
-    private ImageReader.OnImageAvailableListener mOnImageAvailableListener =
-            new ImageReader.OnImageAvailableListener() {
+    //ImageReader
+    private ImageReader.OnImageAvailableListener mOnImageAvailableListener = new ImageReader.OnImageAvailableListener() {
         @Override
         public void onImageAvailable(ImageReader reader) {
 
@@ -294,6 +267,8 @@ public class MainActivity extends AppCompatActivity {
             new SaveImageTask().execute(bitmap);
         }
     };
+
+    //CameraDevice
     private CameraDevice.StateCallback deviceStateCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(CameraDevice camera) {
@@ -319,80 +294,14 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-
-   /* private void setAspectRatioTextureView(int ResolutionWidth , int ResolutionHeight )
-    {
-        resolutionWidth = ResolutionWidth;
-        resolutionHeight = ResolutionHeight;
-        if(ResolutionWidth > ResolutionHeight){
-            int newWidth = mDSI_width;
-            int newHeight = ((mDSI_width * ResolutionWidth)/ResolutionHeight);
-            updateTextureViewSize(newWidth,newHeight);
-
-        }else {
-            int newWidth = mDSI_width;
-            int newHeight = ((mDSI_width * ResolutionHeight)/ResolutionWidth);
-            updateTextureViewSize(newWidth,newHeight);
-        }
-
-    }
-
-    private void updateTextureViewSize(int viewWidth, int viewHeight) {
-        Log.d("@@@", "TextureView Width : " + viewWidth + " TextureView Height : " + viewHeight);
-        mSurfaceView.setLayoutParams(new FrameLayout.LayoutParams(viewWidth, viewHeight));
-    }*/
-
-    /*private void setAspectRatioTextureView(int height, int width) {
-
-    }*/
-
-   /* private ImageReader.OnImageAvailableListener mOnImageAvailableListener = new ImageReader.OnImageAvailableListener() {
-        @Override
-        public void onImageAvailable(ImageReader reader) {
-
-            Image image = reader.acquireNextImage();
-            ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-            byte[] bytes = new byte[buffer.remaining()];
-            buffer.get(bytes);
-            final Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-            new SaveImageTask().execute(bitmap);
-        }
-    };
-    private CameraDevice.StateCallback deviceStateCallback = new CameraDevice.StateCallback() {
-        @Override
-        public void onOpened(@NonNull CameraDevice camera) {
-            //mCameraDevice = camera;
-            //takePreview();
-            //takePicture();
-            try {
-                takePreview();
-            } catch (CameraAccessException e) {
-                e.printStackTrace();
-            }
-
-        }
-
-        @Override
-        public void onDisconnected(@NonNull CameraDevice camera) {
-            if (mCameraDevice != null) {
-                mCameraDevice.close();
-                mCameraDevice = null;
-            }
-        }
-
-        @Override
-        public void onError(@NonNull CameraDevice camera, int error) {
-            Toast.makeText(MainActivity.this, "카메라를 열지 못했습니다.", Toast.LENGTH_SHORT).show();
-        }
-    };*/
-    //
-
+    //takePreview
     public void takePreview() throws CameraAccessException {
         mPreviewBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
         mPreviewBuilder.addTarget(mSurfaceViewHolder.getSurface());
         mCameraDevice.createCaptureSession(Arrays.asList(mSurfaceViewHolder.getSurface(), mImageReader.getSurface()), mSessionPreviewStateCallback, mHandler);
     }
 
+    //CameraCaptureSession StateCallback
     private CameraCaptureSession.StateCallback mSessionPreviewStateCallback = new CameraCaptureSession.StateCallback() {
         @Override
         public void onConfigured(@NonNull CameraCaptureSession session) {
@@ -415,37 +324,38 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
-// lee0508
+    //CameraCaptureSession.CaptureCallback
     private CameraCaptureSession.CaptureCallback mSessionCaptureCallback = new CameraCaptureSession.CaptureCallback() {
         @Override
         public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
             mSession = session;
             unlockFocus();
         }
+
         @Override
         public void onCaptureProgressed(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull CaptureResult partialResult) {
             mSession = session;
-            if (mSession != null) {
-                Toast.makeText(MainActivity.this,"이미지 저장 진행중.....",Toast.LENGTH_SHORT).show();
-            }
+                /*if (mSession != null) {
+                    Toast.makeText(MainActivity.this,"이미지 저장 진행중.....",Toast.LENGTH_SHORT).show();
+                }*/
         }
 
         @Override
         public void onCaptureFailed(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull CaptureFailure failure) {
             super.onCaptureFailed(session, request, failure);
-            if (request != null) {
-                Log.d(TAG,"onCapture saved");
-            } else {
-                Toast.makeText(MainActivity.this,"이미지를 저장하지 못했습니다.",Toast.LENGTH_SHORT).show();
-            }
+                /*if (request != null) {
+                    Log.d(TAG,"onCapture saved");
+                } else {
+                    Toast.makeText(MainActivity.this,"이미지를 저장하지 못했습니다.",Toast.LENGTH_SHORT).show();
+                }*/
 
-        };
-
+        }
+    };
 
     public void takePicture() {
 
         try {
-            CaptureRequest.Builder captureRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);//用来设置拍照请求的request
+            CaptureRequest.Builder captureRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE); //用来设置拍照请求的request
             captureRequestBuilder.addTarget(mImageReader.getSurface());
             captureRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
             captureRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
@@ -475,6 +385,13 @@ public class MainActivity extends AppCompatActivity {
         return Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), m, true);
 
     }
+
+
+
+    /**
+     * Unlock the focus. This method should be called when still image capture sequence is
+     * finished.
+     */
     private void unlockFocus() {
         try {
             // Reset the auto-focus trigger
@@ -492,7 +409,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /*public static final String insertImage (ContentResolver cr, Bitmap source, String title, String description) {
+    //출처 - https://codeday.me/ko/qa/20190310/39556.html
+    /**
+     * A copy of the Android internals  insertImage method, this method populates the
+     * meta data with DATE_ADDED and DATE_TAKEN. This fixes a common problem where media
+     * that is inserted manually gets saved at the end of the gallery (because date is not populated).
+     * @see android.provider.MediaStore.Images.Media#insertImage(ContentResolver, Bitmap, String, String)
+     */
+    public static final String insertImage(ContentResolver cr,
+                                           Bitmap source,
+                                           String title,
+                                           String description) {
 
         ContentValues values = new ContentValues();
         values.put(MediaStore.Images.Media.TITLE, title);
@@ -504,7 +431,7 @@ public class MainActivity extends AppCompatActivity {
         values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis());
 
         Uri url = null;
-        String stringUrl = null;    *//* value to be returned *//*
+        String stringUrl = null;    /* value to be returned */
 
         try {
             url = cr.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
@@ -533,9 +460,51 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return stringUrl;
-    }*/
+    }
 
-    public void takeCancel(View view) {
+    private class SaveImageTask extends AsyncTask<Bitmap, Void, Void> {
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+
+            Toast.makeText(MainActivity.this, "사진을 저장하였습니다.", Toast.LENGTH_SHORT).show();
+        }
+
+        @Override
+        protected Void doInBackground(Bitmap... data) {
+
+            Bitmap bitmap = null;
+            try {
+                bitmap = getRotatedBitmap(data[0], mDeviceRotation);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            insertImage(getContentResolver(), bitmap, ""+System.currentTimeMillis(), "");
+
+            return null;
+        }
+
+    }
+
+
+    // 출처 https://stackoverflow.com/a/43516672
+    private void setAspectRatioTextureView(int ResolutionWidth , int ResolutionHeight ) {
+
+        if(ResolutionWidth > ResolutionHeight){
+            int newWidth = mDSI_width;
+            int newHeight = ((mDSI_width * ResolutionWidth)/ResolutionHeight);
+            updateTextureViewSize(newWidth,newHeight);
+
+        }else {
+            int newWidth = mDSI_width;
+            int newHeight = ((mDSI_width * ResolutionHeight)/ResolutionWidth);
+            updateTextureViewSize(newWidth,newHeight);
+        }
+    }
+
+
+    public void takeCancel() {
         //view.setOnClickListener((View.OnClickListener) this);
         //Toast.makeText(this,"Cancel",Toast.LENGTH_SHORT).show();
         Context context;
@@ -546,11 +515,13 @@ public class MainActivity extends AppCompatActivity {
                 .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int i) {
+
+                        HandlerThread.interrupted();
                         finish();
                     }
                 })
 
-                .setPositiveButton("No", new DialogInterface.OnClickListener() {
+                .setNegativeButton("No", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int i) {
                         dialog.cancel();
@@ -564,91 +535,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    /*private class SaveImageTask extends AsyncTask<Bitmap, Void, Void> {
-
-        @Override
-        protected void onPostExecute(Void aVoid) {
-            super.onPostExecute(aVoid);
-
-            Toast.makeText(MainActivity.this, "사진을 저장하였습니다.", Toast.LENGTH_SHORT).show();
-        }
-
-        @Override
-        protected Void doInBackground(Bitmap... data){
-
-            Bitmap bitmap = null;
-            try {
-                bitmap = getRotatedBitmap(data[0], mDeviceRotation);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            insertImage(getContentResolver(), bitmap, ""+System.currentTimeMillis(), "");
-
-            return null;
-        }*/
-
-        private String insertImage(ContentResolver cr, Bitmap source, String title, String description) {
-            ContentValues values = new ContentValues();
-            values.put(MediaStore.Images.Media.TITLE, title);
-            values.put(MediaStore.Images.Media.DISPLAY_NAME, title);
-            values.put(MediaStore.Images.Media.DESCRIPTION, description);
-            values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-            // Add the date meta data to ensure the image is added at the front of the gallery
-            values.put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis());
-            values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis());
-
-            Uri url = null;
-            String stringUrl = null;    /* value to be returned */
-
-            try {
-                url = cr.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-
-                if (source != null) {
-                    OutputStream imageOut = cr.openOutputStream(url);
-                    try {
-                        source.compress(Bitmap.CompressFormat.JPEG, 50, imageOut);
-                    } finally {
-                        imageOut.close();
-                    }
-
-                } else {
-                    cr.delete(url, null, null);
-                    url = null;
-                }
-            } catch (Exception e) {
-                if (url != null) {
-                    cr.delete(url, null, null);
-                    url = null;
-                }
-            }
-
-            if (url != null) {
-                stringUrl = url.toString();
-            }
-
-            return stringUrl;
-        }
-
-    };
-
-
-
-    /*private void setAspectRatioTextureView(int ResolutionWidth , int ResolutionHeight )
-    {
-        resolutionWidth = ResolutionWidth;
-        resolutionHeight = ResolutionHeight;
-        if(ResolutionWidth > ResolutionHeight){
-            int newWidth = mDSI_width;
-            int newHeight = ((mDSI_width * ResolutionWidth)/ResolutionHeight);
-            updateTextureViewSize(newWidth,newHeight);
-
-        }else {
-            int newWidth = mDSI_width;
-            int newHeight = ((mDSI_width * ResolutionHeight)/ResolutionWidth);
-            updateTextureViewSize(newWidth,newHeight);
-        }
-
-    }*/
 
     private void updateTextureViewSize(int viewWidth, int viewHeight) {
         Log.d("@@@", "TextureView Width : " + viewWidth + " TextureView Height : " + viewHeight);
