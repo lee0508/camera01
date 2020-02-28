@@ -6,9 +6,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
 import android.Manifest;
-import android.annotation.TargetApi;
 import android.app.AlertDialog;
-import android.app.Dialog;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -36,7 +34,6 @@ import android.media.ExifInterface;
 import android.media.Image;
 import android.media.ImageReader;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -52,10 +49,8 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.Toast;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -79,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
     boolean previewing = false;
 
     final int RESULT_SAVEIMAGE = 0;
-
+    //public static final String[]
 
     private static final SparseIntArray ORIENTATIONS = new SpareIntArray();
     static {
@@ -270,6 +265,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setAspectRatioTextureView(int height, int width) {
+        int ResolutionWidth = width  ;
+        int ResolutionHeight = height;
+        resolutionWidth = ResolutionWidth;
+        resolutionHeight = ResolutionHeight;
+        if(ResolutionWidth > ResolutionHeight){
+            int newWidth = mDSI_width;
+            int newHeight = ((mDSI_width * ResolutionWidth)/ResolutionHeight);
+            updateTextureViewSize(newWidth,newHeight);
+
+        }else {
+            int newWidth = mDSI_width;
+            int newHeight = ((mDSI_width * ResolutionHeight)/ResolutionWidth);
+            updateTextureViewSize(newWidth,newHeight);
+        }
     }
 
     private ImageReader.OnImageAvailableListener mOnImageAvailableListener =
@@ -483,7 +492,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public static final String insertImage (ContentResolver cr, Bitmap source, String title, String description) {
+    /*public static final String insertImage (ContentResolver cr, Bitmap source, String title, String description) {
 
         ContentValues values = new ContentValues();
         values.put(MediaStore.Images.Media.TITLE, title);
@@ -495,7 +504,7 @@ public class MainActivity extends AppCompatActivity {
         values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis());
 
         Uri url = null;
-        String stringUrl = null;    /* value to be returned */
+        String stringUrl = null;    *//* value to be returned *//*
 
         try {
             url = cr.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
@@ -524,7 +533,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         return stringUrl;
-    }
+    }*/
 
     public void takeCancel(View view) {
         //view.setOnClickListener((View.OnClickListener) this);
@@ -555,7 +564,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    private class SaveImageTask extends AsyncTask<Bitmap, Void, Void> {
+    /*private class SaveImageTask extends AsyncTask<Bitmap, Void, Void> {
 
         @Override
         protected void onPostExecute(Void aVoid) {
@@ -576,13 +585,55 @@ public class MainActivity extends AppCompatActivity {
             insertImage(getContentResolver(), bitmap, ""+System.currentTimeMillis(), "");
 
             return null;
+        }*/
+
+        private String insertImage(ContentResolver cr, Bitmap source, String title, String description) {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Images.Media.TITLE, title);
+            values.put(MediaStore.Images.Media.DISPLAY_NAME, title);
+            values.put(MediaStore.Images.Media.DESCRIPTION, description);
+            values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+            // Add the date meta data to ensure the image is added at the front of the gallery
+            values.put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis());
+            values.put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis());
+
+            Uri url = null;
+            String stringUrl = null;    /* value to be returned */
+
+            try {
+                url = cr.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+
+                if (source != null) {
+                    OutputStream imageOut = cr.openOutputStream(url);
+                    try {
+                        source.compress(Bitmap.CompressFormat.JPEG, 50, imageOut);
+                    } finally {
+                        imageOut.close();
+                    }
+
+                } else {
+                    cr.delete(url, null, null);
+                    url = null;
+                }
+            } catch (Exception e) {
+                if (url != null) {
+                    cr.delete(url, null, null);
+                    url = null;
+                }
+            }
+
+            if (url != null) {
+                stringUrl = url.toString();
+            }
+
+            return stringUrl;
         }
 
-    }
+    };
 
 
 
-    private void setAspectRatioTextureView(int ResolutionWidth , int ResolutionHeight )
+    /*private void setAspectRatioTextureView(int ResolutionWidth , int ResolutionHeight )
     {
         resolutionWidth = ResolutionWidth;
         resolutionHeight = ResolutionHeight;
@@ -597,7 +648,7 @@ public class MainActivity extends AppCompatActivity {
             updateTextureViewSize(newWidth,newHeight);
         }
 
-    }
+    }*/
 
     private void updateTextureViewSize(int viewWidth, int viewHeight) {
         Log.d("@@@", "TextureView Width : " + viewWidth + " TextureView Height : " + viewHeight);
